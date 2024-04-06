@@ -9,7 +9,7 @@
     <OldToolsVersion>2.0</OldToolsVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="DiscordRichPresence" Version="1.0.150" />
+    <PackageReference Include="DiscordRichPresence" Version="1.2.1.24" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PresenceCommon\PresenceCommon.csproj" />
