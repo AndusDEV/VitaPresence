@@ -11,6 +11,7 @@
 #define APP_LIST_GET_STATE(base)    *GET_OFFSET(base, 0xAA0)
 
 #define TITLEID_LEN 10
+#define CONTENTID_LEN 48
 #define TITLE_LEN   128
 
 typedef enum {
@@ -23,6 +24,7 @@ typedef struct {
     int index;
     char titleid[TITLEID_LEN];
     char title[TITLE_LEN];
+	char contentid[CONTENTID_LEN];
 } vitapresence_data_t;
 
 typedef struct {

@@ -7,7 +7,7 @@
 #include "main.h"
 
 int module_get_offset(SceUID pid, SceUID modid, int segidx, size_t offset, uintptr_t *addr);
-bool ksceSblACMgrIsPspEmu(SceUID pid);
+int ksceSblACMgrIsPspEmu(SceUID pid);
 
 static SceUID g_thread_uid = -1;
 static bool g_thread_run = true;
@@ -62,10 +62,55 @@ ERR_CLOSE:
     return 0;
 }
 
+static int extract_sfo_contentid(char *out_title, const char *bubbleid) {
+    char sfo_path[128];
+    snprintf(sfo_path, 128, "ux0:app/%s/sce_sys/param.sfo", bubbleid);
+    snprintf(out_title, TITLE_LEN, "%s", bubbleid);
+
+    int ret = 0;
+    int fd = ksceIoOpen(sfo_path, SCE_O_RDONLY, 0777);
+    if (fd < 0)
+        return 0;
+
+    char key[11];
+
+    sfo_header_t hdr;
+    ret = ksceIoRead(fd, &hdr, sizeof(sfo_header_t));
+    if (ret != sizeof(sfo_header_t) || hdr.magic != 0x46535000) {
+        goto ERR_CLOSE;
+    }
+
+    sfo_entry_t entry;
+    for (uint32_t i = 0; i < hdr.indexTableEntries; i++) {
+        ret = ksceIoPread(fd, &entry, sizeof(sfo_entry_t), sizeof(sfo_header_t) + sizeof(sfo_entry_t) * i);
+        if (ret != sizeof(sfo_entry_t))
+            goto ERR_CLOSE;
+
+        ret = ksceIoPread(fd, key, 10, hdr.keyTableOffset + entry.keyOffset);
+        if (ret != 10)
+            goto ERR_CLOSE;
+
+        if (strncmp(key, "CONTENT_ID", 10))
+            continue;
+
+        ret = ksceIoPread(fd, out_title, CONTENTID_LEN, hdr.dataTableOffset + entry.dataOffset);
+        if (ret != CONTENTID_LEN)
+            goto ERR_CLOSE;
+
+        ksceIoClose(fd);
+        return 1;
+    }
+
+ERR_CLOSE:
+    ksceIoClose(fd);
+    return 0;
+}
+
 // If there's a better way of obtaining foreground app info, please do let me know
-static int get_fg_app(char *out_titleid, char *out_title) {
+static int get_fg_app(char *out_titleid, char *out_title, char *out_contentid) {
     out_titleid[0] = '\0';
     out_title[0] = '\0';
+    out_contentid[0] = '\0';
 
     int ret = ksceKernelLockMutex(*SceAppMgr_mutex_uid, 1, 0);
     if (ret < 0)
@@ -127,7 +172,8 @@ static int get_fg_app(char *out_titleid, char *out_title) {
         // PSVita game/app
         else {
             snprintf(out_titleid, TITLEID_LEN, "%s", titleid);
-            snprintf(out_title, TITLE_LEN, "%s", (const char *)(APP_LIST_GET_TITLE(pcurrent)));
+            extract_sfo_title(out_title, bubbleid);
+            extract_sfo_contentid(out_contentid, bubbleid);
         }
 
         ksceKernelUnlockMutex(*SceAppMgr_mutex_uid, 1);
@@ -176,7 +222,7 @@ static int vitapresence_thread(SceSize args, void *argp) {
                 break;
 
             presence_data.magic = 0xCAFECAFE;
-            presence_data.index = get_fg_app(presence_data.titleid, presence_data.title);
+            presence_data.index = get_fg_app(presence_data.titleid, presence_data.title, presence_data.contentid);
 
             ret = ksceNetSend(client_sockfd, &presence_data, sizeof(vitapresence_data_t), 0);
             ksceNetSocketClose(client_sockfd);
