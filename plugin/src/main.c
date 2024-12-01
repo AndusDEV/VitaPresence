@@ -3,11 +3,27 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <psp2kern/kernel/debug.h> 
+#include <psp2kern/kernel/modulemgr.h>
 
 #include "main.h"
 
 int module_get_offset(SceUID pid, SceUID modid, int segidx, size_t offset, uintptr_t *addr);
 int ksceSblACMgrIsPspEmu(SceUID pid);
+
+int patch_netrecv(void) {
+	SceUID module_id;
+	void *patch_point;
+	char inst[0x20];
+	module_id = ksceKernelSearchModuleByName("SceNetPs");
+	module_get_offset(0x10005, module_id, 0, 0x6986, (uintptr_t *)&patch_point);
+	memcpy(inst, patch_point, 0x1E);
+	memcpy(&(inst[0x0]), (const char[4]){0xDD, 0xF8, 0x30, 0xC0}, 4);
+	memcpy(&(inst[0xC]), (const char[4]){0xC4, 0xE9, 0x07, 0xC5}, 4);
+	memcpy(&(inst[0x16]), (const char[4]){0xC4, 0xE9, 0x04, 0x55}, 4);
+	taiInjectDataForKernel(0x10005, module_id, 0, 0x6986, inst, 0x1E);
+	return 0;
+}
 
 static SceUID g_thread_uid = -1;
 static bool g_thread_run = true;
@@ -220,12 +236,63 @@ static int vitapresence_thread(SceSize args, void *argp) {
             client_sockfd = ksceNetAccept(server_sockfd, (SceNetSockaddr *)&clientaddr, &addrlen);
             if (client_sockfd < 0)
                 break;
+            
+            char buf[BUFFER_SIZE];
+            int32_t n = ksceNetRecv(client_sockfd, buf, BUFFER_SIZE - 1, 0);
+            if (n > 0)
+            {
+                buf[n] = '\0';
+                ksceDebugPrintf("Client msg:\n%s\n", buf);
+            }
+            else
+                ksceDebugPrintf("error retrieving data: 0x%08X\n", n);
 
-            presence_data.magic = 0xCAFECAFE;
-            presence_data.index = get_fg_app(presence_data.titleid, presence_data.title, presence_data.contentid);
-
-            ret = ksceNetSend(client_sockfd, &presence_data, sizeof(vitapresence_data_t), 0);
-            ksceNetSocketClose(client_sockfd);
+            get_fg_app(presence_data.titleid, presence_data.title, presence_data.contentid);
+            if (strncmp(buf, "GET /icon0.png", 14) == 0)
+            {
+                const char * response_image = 
+                    "HTTP/1.1 200 OK\r\n"
+                    "Content-Type: text/html\r\n"
+                    "Connection: close\r\n\r\n"
+                    "<!DOCTYPE html>"
+                    "<html>"
+                    "<head><title>Image</title></head>"
+                    "<body>"
+                    "<p>work in progress lmao</p>"
+                    "</body>"
+                    "</html>";
+                ret = ksceNetSend(client_sockfd, response_image, sizeof(response_image), 0);
+                ksceNetSocketClose(client_sockfd);
+            }
+            else
+            {
+                const char * response_template = 
+                    "HTTP/1.1 200 OK\r\n"
+                    "Content-Type: text/html\r\n"
+                    "Connection: close\r\n\r\n"
+                    "<!DOCTYPE html>"
+                    "<html>"
+                    "<head><title>Presence</title></head>"
+                    "<body>"
+                    "<p>%s</p>"
+                    "<P>%s</p>"
+                    "<img src=\"icon0.png\" width=\"128\" height=\"128\">"
+                    "</body>"
+                    "</html>";
+                SceSize html_size = strlen(response_template) + (strlen(presence_data.titleid) * 2) + strlen(presence_data.title);
+                SceUID response_uid = ksceKernelAllocMemBlock("presence", SCE_KERNEL_MEMBLOCK_TYPE_KERNEL_RW, 0x0020000, NULL);
+                char * response_header;
+                if (response_uid < 0)
+                {
+                    ksceDebugPrintf("Failed to allocate memblock with code 0x%08X\n", response_uid);
+                    break;
+                }
+                ksceKernelGetMemBlockBase(response_uid, (void **)&response_header);
+                snprintf(response_header, html_size, response_template, presence_data.titleid, presence_data.title, presence_data.titleid);
+                ret = ksceNetSend(client_sockfd, response_header, html_size, 0);
+                ksceNetSocketClose(client_sockfd);
+                ksceKernelFreeMemBlock(response_uid);
+            }
         }
 
         ksceNetSocketClose(server_sockfd);
@@ -236,7 +303,7 @@ static int vitapresence_thread(SceSize args, void *argp) {
 
 void _start() __attribute__ ((weak, alias ("module_start")));
 int module_start(SceSize argc, const void *args) {
-
+    patch_netrecv();
     tai_module_info_t tai_info;
     tai_info.size = sizeof(tai_module_info_t);
     if (taiGetModuleInfoForKernel(KERNEL_PID, "SceAppMgr", &tai_info) < 0)

@@ -1,8 +1,10 @@
 out
+.vscode
 
 pc/.vs
 pc/packages
 pc/*/bin
 pc/*/obj
 
+plugin/.vscode
 plugin/build

@@ -14,6 +14,8 @@
 #define CONTENTID_LEN 48
 #define TITLE_LEN   128
 
+#define BUFFER_SIZE 1024
+
 typedef enum {
     APP_RUNNING = 2,
     APP_SUSPENDED = 3
