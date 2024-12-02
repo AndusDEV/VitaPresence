@@ -35,6 +35,7 @@ target_link_libraries(${PROJECT_NAME}
   SceIofilemgrForDriver_stub
   SceDebugForDriver_stub 
   SceModulemgrForDriver_stub
+  SceSysrootForDriver_stub 
 )
 
 vita_create_self(${PROJECT_NAME}.skprx ${PROJECT_NAME}
