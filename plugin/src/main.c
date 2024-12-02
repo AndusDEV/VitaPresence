@@ -15,7 +15,7 @@ int ksceSblACMgrIsPspEmu(SceUID pid);
 // See https://wiki.henkaku.xyz/vita/Bugs#sceNetRecvfromForDriver_0xC0022005_error_on_kernel_call
 int patch_netrecv(void) {
     unsigned int sw_version = ksceKernelSysrootGetSystemSwVersion();
-    unsigned int netrecv_offset = -1;
+    unsigned int netrecv_offset;
     switch (sw_version >> 16)
     {
         case 0x360:
@@ -282,13 +282,12 @@ static int vitapresence_thread(SceSize args, void *argp) {
                     ksceKernelFreeMemBlock(icon_uid);
                     icon_uid = -1;
                 }
-                    ksceNetSocketClose(client_sockfd);
             }
             else
             {
                 const char * response_template = 
                     "HTTP/1.1 200 OK\r\n"
-                    "Content-Type: text/html\r\n"
+                    "Content-Type: text/html; charset=utf-8\r\n"
                     "Connection: close\r\n\r\n"
                     "<!DOCTYPE html>"
                     "<html>"
@@ -311,9 +310,10 @@ static int vitapresence_thread(SceSize args, void *argp) {
                 ksceKernelGetMemBlockBase(response_uid, (void **)&response_header);
                 snprintf(response_header, html_size, response_template, presence_data.title, presence_data.titleid);
                 ret = ksceNetSend(client_sockfd, response_header, html_size, 0);
-                ksceNetSocketClose(client_sockfd);
                 ksceKernelFreeMemBlock(response_uid);
             }
+
+            ksceNetSocketClose(client_sockfd);
         }
 
         ksceNetSocketClose(server_sockfd);

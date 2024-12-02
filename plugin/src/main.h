@@ -21,8 +21,6 @@ typedef enum {
 } app_state_t;
 
 typedef struct {
-    uint32_t magic;
-    int index;
     char titleid[TITLEID_LEN];
     char title[TITLE_LEN];
 	int icon_size;
