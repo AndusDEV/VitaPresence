@@ -263,13 +263,16 @@ static int vitapresence_thread(SceSize args, void *argp) {
                 ksceDebugPrintf("Error retrieving data: 0x%08X\n", n);
 
             get_fg_app(presence_data.titleid, presence_data.title, &presence_data.icon_size);
-            if (strncmp(buf, "GET /icon0.png", 14) == 0)
+
+            char icon_get[20];
+            snprintf(icon_get, sizeof(icon_get), "GET /%s.png", presence_data.titleid);
+            if (strncmp(buf, icon_get, strlen(icon_get)) == 0)
             {
                 if (icon_uid >= 0)
                 {
                     char * icon_buff;
                     ksceKernelGetMemBlockBase(icon_uid, (void **)&icon_buff);
-                    char header[256];
+                    char header[128];
                     snprintf(header, sizeof(header),
                              "HTTP/1.1 200 OK\r\n"
                              "Content-Type: image/png\r\n"
@@ -295,10 +298,10 @@ static int vitapresence_thread(SceSize args, void *argp) {
                     "<body>"
                     "<p>%s</p>"
                     "<P>%s</p>"
-                    "<img src=\"icon0.png\" width=\"128\" height=\"128\">"
+                    "<img src=\"%s.png\" width=\"128\" height=\"128\">"
                     "</body>"
                     "</html>";
-                SceSize html_size = strlen(response_template) + strlen(presence_data.titleid) + strlen(presence_data.title);
+                SceSize html_size = strlen(response_template) + (strlen(presence_data.titleid) * 2) + strlen(presence_data.title);
                 SceUID response_uid = ksceKernelAllocMemBlock("presence", SCE_KERNEL_MEMBLOCK_TYPE_KERNEL_RW, (html_size + 0xfff) & ~0xfff, NULL);
                 char * response_header;
                 if (response_uid < 0)
@@ -308,7 +311,7 @@ static int vitapresence_thread(SceSize args, void *argp) {
                     break;
                 }
                 ksceKernelGetMemBlockBase(response_uid, (void **)&response_header);
-                snprintf(response_header, html_size, response_template, presence_data.title, presence_data.titleid);
+                snprintf(response_header, html_size, response_template, presence_data.title, presence_data.titleid, presence_data.titleid);
                 ret = ksceNetSend(client_sockfd, response_header, html_size, 0);
                 ksceKernelFreeMemBlock(response_uid);
             }
