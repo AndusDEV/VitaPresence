@@ -4,7 +4,7 @@ Change your Discord rich presence to your currently playing PS Vita game!
 Inspired by [SwitchPresence](https://github.com/Sun-Research-University/SwitchPresence-Rewritten)
 <br>
 
-![vitapresence](https://user-images.githubusercontent.com/12598379/78289782-fc45eb80-7522-11ea-8d5c-1deb49b1cb9c.png)
+![vitapresence](https://github.com/user-attachments/assets/03117968-b8a8-4141-a34b-33635efa2243)
 
 Works with PSVita & Adrenaline (including custom bubbles) games/apps
 
@@ -15,8 +15,11 @@ It would be nice to have rich presence working with only the Vita itself, but th
 
 ## Setup
 - Install the .skprx plugin within the `*KERNEL` section of your taiHEN config.txt
-- Create an application at the [Discord Developer Portal](https://discordapp.com/developers/applications/), call your application `PS Vita` or whatever you would like and then enter your client ID and Vita's IP or MAC address into the VitaPresence client!
+- Create an application at the [Discord Developer Portal](https://discordapp.com/developers/applications/), call your application `PS Vita` or whatever you would like.
+- Add a Rich Presence Assets and name it `playstation_app_icon`, you can use [this image](https://upload.wikimedia.org/wikipedia/commons/9/91/PlayStation_App_Icon.jpg) or anything you'd like. It will be used if VitaPresence fails to fetch icon0.png from the Vita for one reason or another.
+- Forward port 51966 of your Vita, how you can do that varies from one router to another so I'll let you do some research.
+- Enter your client ID and Vita's IP or MAC address into the VitaPresence client and you're done!
 <br>
 
 ## Credits
-- [Sun-Research-University](https://github.com/Sun-Research-University) for the idea & desktop app codebase
+- [Electry](https://github.com/Electry) for the original VitaPresence
