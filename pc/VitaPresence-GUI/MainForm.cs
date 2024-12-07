@@ -11,7 +11,7 @@ using System.Drawing;
 using System.IO;
 using System.Media;
 using System.Net;
-using System.Net.Sockets;
+using System.Net.Http;
 using System.Threading;
 using System.Timers;
 using System.Windows.Forms;
@@ -22,7 +22,8 @@ namespace VitaPresence_GUI
     public partial class MainForm : Form
     {
         private Thread listenThread;
-        private static Socket client;
+        private static HttpClient client;
+        private static Uri BaseAddress;
         private static DiscordRpcClient rpc;
         private IPAddress ipAddress;
         private int updateInterval = 10;
@@ -130,7 +131,7 @@ namespace VitaPresence_GUI
                     rpc.Dispose();
                 }
 
-                if (client != null) client.Close();
+                if (client != null) client.Dispose();
                 if (timer != null) timer.Dispose();
                 listenThread = new Thread(TryConnect);
                 UpdateStatus("", Color.Gray);
@@ -200,31 +201,27 @@ namespace VitaPresence_GUI
 
             while (true)
             {
-                client = new Socket(SocketType.Stream, ProtocolType.Tcp)
-                {
-                    ReceiveTimeout = 5500,
-                    SendTimeout = 5500,
-                };
+                client = new HttpClient();
                 IPEndPoint localEndPoint = new IPEndPoint(ipAddress, 0xCAFE);
+                client.BaseAddress = new Uri("http://" + localEndPoint.ToString());
 
                 timer.Enabled = true;
 
                 try
                 {
-                    IAsyncResult result = client.BeginConnect(localEndPoint, null, null);
+                    IAsyncResult result = client.GetAsync(BaseAddress);
                     bool success = result.AsyncWaitHandle.WaitOne(2000, true);
                     if (!success)
                     {
                         SetUserInfoConnecting();
-                        client.Close();
+                        client.Dispose();
                         if (rpc != null && !rpc.IsDisposed) rpc.ClearPresence();
                     }
                     else
                     {
                         timer.Enabled = false;
                         DataListenOne();
-                        client.EndConnect(result);
-                        client.Close();
+                        client.Dispose();
                     }
 
                     Thread.Sleep(updateInterval * 1000); // wait before another connect
@@ -236,12 +233,12 @@ namespace VitaPresence_GUI
                     Thread.Sleep(1000);
                     IPAddress.TryParse(Utils.GetIpByMac(addressBox.Text), out ipAddress);
                 }
-                catch (SocketException e)
+                catch (Exception e)
                 {
                     UpdateStatus(e.ToString(), Color.Red);
                     Thread.Sleep(2000);
 
-                    client.Close();
+                    client.Dispose();
                     if (rpc != null && !rpc.IsDisposed) rpc.ClearPresence();
 
                     SetUserInfoConnecting();
@@ -252,47 +249,36 @@ namespace VitaPresence_GUI
         private void DataListenOne()
         {
             ManualUpdate = true;
-            byte[] bytes = new byte[600];
-            int cnt = client.Receive(bytes);
+            string str = client.GetStringAsync(BaseAddress).Result;
 
-            Title title = new Title(bytes);
-            if (title.Magic == 0xCAFECAFE)
+            Title title = new Title(str);
+            trayIcon.Icon = Resources.Connected;
+            trayIcon.Text = "VitaPresence (Connected)";
+
+            if (string.IsNullOrEmpty(title.TitleName) || string.IsNullOrEmpty(title.TitleID))
             {
-                trayIcon.Icon = Resources.Connected;
-                trayIcon.Text = "VitaPresence (Connected)";
-
-                if (title.Index == 0)
-                {
-                    UpdateStatus("In LiveArea (Connected)", Color.Green);
-                }
-                else
-                {
-                    UpdateStatus("Playing [" + title.TitleID + "] (Connected)", Color.Green);
-                }
-
-                if (LastTitleID != title.TitleID)
-                {
-                    time = Timestamps.Now;
-                }
-                if ((LastTitleID != title.TitleID) || ManualUpdate)
-                {
-                    if (rpc != null)
-                    {
-                        if (checkMainMenu.Checked == false && title.Index == 0)
-                            rpc.ClearPresence();
-                        else
-                            rpc.SetPresence(PresenceCommon.Utils.CreateDiscordPresence(title, time, stateBox.Text));
-                    }
-                    ManualUpdate = false;
-                    LastTitleID = title.TitleID;
-                }
+                UpdateStatus("In LiveArea (Connected)", Color.Green);
             }
             else
             {
-                UpdateStatus("Invalid magic!", Color.Red);
+                UpdateStatus("Playing [" + title.TitleID + "] (Connected)", Color.Green);
+            }
 
-                if (rpc != null && !rpc.IsDisposed) rpc.ClearPresence();
-                return;
+            if (LastTitleID != title.TitleID)
+            {
+                time = Timestamps.Now;
+            }
+            if ((LastTitleID != title.TitleID) || ManualUpdate)
+            {
+                if (rpc != null)
+                {
+                    if (checkMainMenu.Checked == false && (string.IsNullOrEmpty(title.TitleName) || string.IsNullOrEmpty(title.TitleID)))
+                        rpc.ClearPresence();
+                    else
+                        rpc.SetPresence(PresenceCommon.Utils.CreateDiscordPresence(title, time, stateBox.Text));
+                }
+                ManualUpdate = false;
+                LastTitleID = title.TitleID;
             }
         }
 
@@ -331,7 +317,7 @@ namespace VitaPresence_GUI
                 rpc.Dispose();
             }
 
-            if (client != null) client.Close();
+            if (client != null) client.Dispose();
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)

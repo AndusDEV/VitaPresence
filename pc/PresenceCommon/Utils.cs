@@ -3,6 +3,8 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PresenceCommon.Types;
 using System;
+using System.Diagnostics;
+using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -10,13 +12,12 @@ namespace PresenceCommon
 {
     public static class Utils
     {
-
-        static async Task<string> getImage(string URL)
+        public static async Task<IPAddress> GetExternalIpAddress()
         {
-            HttpClient client = new HttpClient();
-            string response = await client.GetStringAsync(URL);
-            JObject json = JObject.Parse(response);
-            return json["images"][2]["url"].ToString();
+            var externalIpString = (await new HttpClient().GetStringAsync("http://icanhazip.com"))
+                .Replace("\\r\\n", "").Replace("\\n", "").Trim();
+            if (!IPAddress.TryParse(externalIpString, out var ipAddress)) return null;
+            return ipAddress;
         }
 
         public static RichPresence CreateDiscordPresence(Title title, Timestamps time, string state = "")
@@ -28,30 +29,35 @@ namespace PresenceCommon
 
             Assets assets = new Assets {};
 
-            if (title.Index == 0)
+            HttpClient client = new HttpClient();
+
+            if (string.IsNullOrEmpty(title.TitleName) || string.IsNullOrEmpty(title.TitleID))
             {
                 assets.LargeImageText = "LiveArea";
-                //assets.LargeImageKey = $"0{0x0100000000001000:x}";
                 presence.Details = "In the LiveArea";
             }
             else
             {
                 assets.LargeImageText = title.TitleName;
-                //assets.LargeImageKey = $"0{title.TitleID:x}";
                 presence.Details = $"{title.TitleName}";
             }
             try
             {
-                // TODO: only works for US region games for now.
-                string image = getImage("https://store.playstation.com/store/api/chihiro/00_09_000/container/US/en/999/" + title.ContentID).Result;
+                IPEndPoint imageEndPoint = new IPEndPoint(GetExternalIpAddress().Result, 0xCAFE);
+                string image = $"http://{imageEndPoint}/{title.TitleID}.png";
+                client.BaseAddress = new Uri(image);
+                var response = client.GetAsync(client.BaseAddress).Result;
                 assets.LargeImageKey = image;
             }
-            catch 
+            catch (Exception)
             {
-                assets.LargeImageKey = "https://upload.wikimedia.org/wikipedia/commons/9/91/PlayStation_App_Icon.jpg";
+                assets.LargeImageKey = "playstation_app_icon";
             }
+
             presence.Assets = assets;
             presence.Timestamps = time;
+            
+            client.Dispose();
             
             return presence;
         }
