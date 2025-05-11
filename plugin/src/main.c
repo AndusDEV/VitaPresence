@@ -282,8 +282,6 @@ static int vitapresence_thread(SceSize args, void *argp) {
                     
                     ksceNetSend(client_sockfd, header, strlen(header), 0);
                     ksceNetSend(client_sockfd, icon_buff, presence_data.icon_size, 0);
-                    ksceKernelFreeMemBlock(icon_uid);
-                    icon_uid = -1;
                 }
             }
             else
@@ -316,6 +314,12 @@ static int vitapresence_thread(SceSize args, void *argp) {
                 ksceKernelFreeMemBlock(response_uid);
             }
 
+            if (icon_uid >= 0)
+            {
+                ksceKernelFreeMemBlock(icon_uid);
+                icon_uid = -1;
+            }
+            
             ksceNetSocketClose(client_sockfd);
         }
 
