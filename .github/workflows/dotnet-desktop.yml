@@ -17,6 +17,9 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
+    - name: Restore NuGet packages
+      run: nuget restore pc/VitaPresence.sln
+
     - name: Build VitaPresence.sln
       run: msbuild pc/VitaPresence.sln /p:Configuration=Release /p:Platform="Any CPU"
 
