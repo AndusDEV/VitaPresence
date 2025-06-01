@@ -26,39 +26,25 @@ namespace PresenceCommon
             {
                 State = state
             };
-
-            Assets assets = new Assets {};
-
-            HttpClient client = new HttpClient();
-
+        
+            Assets assets = new Assets();
+        
             if (string.IsNullOrEmpty(title.TitleName) || string.IsNullOrEmpty(title.TitleID))
             {
                 assets.LargeImageText = "LiveArea";
+                assets.LargeImageKey = "playstation_app_icon"; // https://upload.wikimedia.org/wikipedia/commons/9/91/PlayStation_App_Icon.jpg
                 presence.Details = "In the LiveArea";
             }
             else
             {
                 assets.LargeImageText = title.TitleName;
-                presence.Details = $"{title.TitleName}";
+                assets.LargeImageKey = title.TitleID.ToLower();
+                presence.Details = title.TitleName;
             }
-            try
-            {
-                IPEndPoint imageEndPoint = new IPEndPoint(GetExternalIpAddress().Result, 0xCAFE);
-                string image = $"http://{imageEndPoint}/{title.TitleID}.png";
-                client.BaseAddress = new Uri(image);
-                var response = client.GetAsync(client.BaseAddress).Result;
-                assets.LargeImageKey = image;
-            }
-            catch (Exception)
-            {
-                assets.LargeImageKey = "playstation_app_icon";
-            }
-
+        
             presence.Assets = assets;
             presence.Timestamps = time;
-            
-            client.Dispose();
-            
+        
             return presence;
         }
     }
