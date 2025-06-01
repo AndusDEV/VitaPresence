@@ -1,4 +1,7 @@
 # VitaPresence
+> [!NOTE]
+> The only change in this fork is that it uses TITLEID's of Vita games and gets the icon from Discord Dev Portal instead of icon0.png from Vita directly
+
 Change your Discord rich presence to your currently playing PS Vita game!
 
 Inspired by [SwitchPresence](https://github.com/Sun-Research-University/SwitchPresence-Rewritten)
