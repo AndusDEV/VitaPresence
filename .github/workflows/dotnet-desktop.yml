@@ -23,8 +23,10 @@ jobs:
     - name: Build VitaPresence.sln
       run: msbuild pc/VitaPresence.sln /p:Configuration=Release /p:Platform="Any CPU"
 
-    - name: Upload Build Artifacts
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: VitaPresence Build
-        path: pc/VitaPresence/bin/Release/
+        name: VitaPresence-Binaries
+        path: |
+          pc/VitaPresence-GUI/bin/Release/
+          pc/VitaPresence-CLI/bin/Release/
