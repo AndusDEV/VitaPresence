@@ -1,0 +1,21 @@
+name: Build VitaPresence
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Build VitaPresence.sln
+      run: msbuild VitaPresence.sln /p:Configuration=Release /p:Platform="Any CPU"
