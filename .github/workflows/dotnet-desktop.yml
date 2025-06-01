@@ -18,4 +18,10 @@ jobs:
       uses: microsoft/setup-msbuild@v2
 
     - name: Build VitaPresence.sln
-      run: msbuild VitaPresence.sln /p:Configuration=Release /p:Platform="Any CPU"
+      run: msbuild pc/VitaPresence.sln /p:Configuration=Release /p:Platform="Any CPU"
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: VitaPresence Build
+        path: pc/VitaPresence/bin/Release/
